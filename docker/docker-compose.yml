@@ -18,8 +18,6 @@ services:
       timeout: 10s
       interval: 5s
       retries: 3
-    depends_on:
-      
     environment:
       # Binds nestjs listener to both IPv4 and IPv6 network interfaces
       HOSTNAME: "::"
@@ -70,8 +68,6 @@ services:
       - ./volumes/api/kong.yml:/home/kong/temp.yml:ro,z
       #- ./volumes/api/server.crt:/home/kong/server.crt:ro
       #- ./volumes/api/server.key:/home/kong/server.key:ro
-    depends_on:
-      
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -350,8 +346,6 @@ services:
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
       - deno-cache:/root/.cache/deno
-    depends_on:
-      
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
