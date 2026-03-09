@@ -1,0 +1,3 @@
+{$DOMAIN} {
+    reverse_proxy kong:8000
+}
