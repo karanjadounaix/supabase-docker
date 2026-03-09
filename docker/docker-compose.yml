@@ -460,16 +460,9 @@ services:
     image: supabase/postgres:15.8.1.085
     restart: unless-stopped
     volumes:
-      # Correct paths pointing directly inside db/ where the Github repository stores them
-      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
-      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      # Forced new data folder so Postgres triggers its initial creation (running the SQL files)
-      - ./volumes/db/data_fresh123:/var/lib/postgresql/data:Z
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
-      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      # We ONLY mount the data_folder natively to save data.
+      # NO MORE SQL FILES MOUNTED HERE because Portainer breaks them into folders!
+      - db-data:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres", "-h", "localhost" ]
@@ -488,14 +481,30 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
-    command:
-      [
-        "postgres",
-        "-c",
-        "config_file=/etc/postgresql/postgresql.conf",
-        "-c",
-        "log_min_messages=fatal"
-      ]
+    # Download scripts directly from Github inside the container right before Postgres boots
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        chown postgres:postgres /var/lib/postgresql/data
+        chmod 700 /var/lib/postgresql/data
+        mkdir -p /docker-entrypoint-initdb.d/migrations
+        mkdir -p /docker-entrypoint-initdb.d/init-scripts
+        
+        apt-get update && apt-get install -y curl
+        
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/realtime.sql -o /docker-entrypoint-initdb.d/migrations/99-realtime.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/webhooks.sql -o /docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/roles.sql -o /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/jwt.sql -o /docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/_supabase.sql -o /docker-entrypoint-initdb.d/migrations/97-_supabase.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/logs.sql -o /docker-entrypoint-initdb.d/migrations/99-logs.sql
+        curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/pooler.sql -o /docker-entrypoint-initdb.d/migrations/99-pooler.sql
+        
+        chown postgres:postgres /docker-entrypoint-initdb.d -R
+        
+        # Switch to postgres user and run the normal postgres entrypoint
+        su - postgres -c "/usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c log_min_messages=fatal"
 
   vector:
     container_name: supabase-vector
@@ -553,4 +562,6 @@ services:
 
 volumes:
   db-config:
+  db-data:
   deno-cache:
+
