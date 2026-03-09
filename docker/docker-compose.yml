@@ -63,9 +63,7 @@ services:
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
-    volumes:
-      # Mount the folder instead of the file to prevent Portainer/Docker "Is a directory" errors
-      - ./volumes/kong_api:/home/kong/config:ro,z
+    # BYPASS VOLUMES: Encoding kong.yml into the entrypoint directly
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -74,14 +72,14 @@ services:
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      #KONG_SSL_CERT: /home/kong/server.crt
-      #KONG_SSL_CERT_KEY: /home/kong/server.key
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # Updated path to cat /home/kong/config/kong.yml
-    entrypoint: bash -c 'eval "echo \"$$(cat /home/kong/config/kong.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+      # The base64 encoded kong.yml (generated from repo)
+      KONG_CONFIG_B64: "_v1,X-XRoc3ZlcnNpb246ICIxLjEiCnNlcnZpY2VzOgogIC0gbmFtZTogYXV0aAogICAgdXJsOiBodHRwOi8vYXV0aDo5OTk5CiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogYXV0aAogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvYXV0aC92MQogICAgICAgIHN0cmlwX3BhdGg6IHRydWUKICAgIHBsdWdpbnM6CiAgICAgIC0gbmFtZTogY29ycwogICAgICAgIGNvbmZpZzoKICAgICAgICAgIG9yaWdpbnM6CiAgICAgICAgICAgIC0gIioiCiAgICAgICAgICBtZXRob2RzOgogICAgICAgICAgICAtIEdFVAogICAgICAgICAgICAtIFBPU1QKICAgICAgICAgICAgLSBQVVQKICAgICAgICAgICAgLSBERUxFVEUKICAgICAgICAgICAgLSBQQVRDSAogICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgogIC0gbmFtZTogcmVzdAogICAgdXJsOiBodHRwOi8vcmVzdDozMDAwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogcmVzdAogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvcmVzdC92MQogICAgICAgIHN0cmlwX3BhdGg6IHRydWUKICAgIHBsdWdpbnM6CiAgICAgIC0gbmFtZTogY29ycwogICAgICAgIGNvbmZpZzoKICAgICAgICAgIG9yaWdpbnM6CiAgICAgICAgICAgIC0gIioiCiAgICAgICAgICBtZXRob2RzOgogICAgICAgICAgICAtIEdFVAogICAgICAgICAgICAtIFBPU1QKICAgICAgICAgICAgLSBQVVQKICAgICAgICAgICAgLSBERUxFVEUKICAgICAgICAgICAgLSBQQVRDSAogICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCiAgICAgIC0gbmFtZToga2V5LWF1dGgKICAgICAgICBjb25maWc6CiAgICAgICAgICBrZXlfbmFtZXM6CiAgICAgICAgICAgIC0gImFwaWtleSIKICAgICAgICAgICAgLSAiQXV0aG9yaXphdGlvbiIKICAgICAgICAgIGhpZGVfa2V5X2hlYWRlcjogZmFsc2UKCiAgLSgbmFtZTogcmVhbHRpbWUKICAgIHVybDogaHR0cDovL3JlYWx0aW1lOjQwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiByZWFsdGltZQogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvcmVhbHRpbWUvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICBwbHVnaW5zOgogICAgICAtIG5hbWU6IGNvcnMKICAgICAgICBjb25maWc6CiAgICAgICAgICBvcmlnaW5zOgogICAgICAgICAgICAtICIqIgogICAgICAgICAgbWV0aG9kczoKICAgICAgICAgICAgLSBHRVQKICAgICAgICAgICAgLSBQT1NUCiAgICAgICAgICAgIC0gUFVUCiAgICAgICAgICAgIC0gREVMRVUKICAgICAgICAgICAgLSBQQVRDSAogICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgogIC0gbmFtZTogc3RvcmFnZQogICAgdXJsOiBodHRwOi8vc3RvcmFnZTo1MDAwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogc3RvcmFnZQogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvc3RvcmFnZS92MQogICAgICAgIHN0cmlwX3BhdGg6IHRydWUKICAgIHBsdWdpbnM6CiAgICAgIC0gbmFtZTogY29ycwogICAgICAgIGNvbmZpZzoKICAgICAgICAgIG9yaWdpbnM6CiAgICAgICAgICAgIC0gIioiCiAgICAgICAgICBtZXRob2RzOgogICAgICAgICAgICAtIEdFVAogICAgICAgICAgICAtIFBPU1QKICAgIC2IFBVTQogICAgICAgICAgICAtIERFTEVURQogICAgICAgICAgICAtIFBBVENICiAgICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCiAgICAgIC0gbmFtZToga2V5LWF1dGgKICAgICAgICBjb25maWc6CiAgICAgICAgICBrZXlfbmFtZXM6CiAgICAgICAgICAgIC0gImFwaWtleSIKICAgICAgICAgICAgLSAiQXV0aG9yaXphdGlvbiIKICAgICAgICAgIGhpZGVfa2V5X2hlYWRlcjogZmFsc2UKCiAgLSgbmFtZTogbWV0YQogICAgdXJsOiBodHRwOi8vbWV0YTo4MDgwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogbWV0YQogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvcGdfbWV0YQogICAgICAgIHN0cmlwX3BhdGg6IHRydWUKICAgIHBsdWdpbnM6CiAgICAgIC0gbmFtZTogYmFzaWMtYXV0aAogICAgICAgIGNvbmZpZzoKICAgICAgICAgIGhpZGVfY3JlZGVudGlhbHM6IHRydWUKCiAgLSgbmFtZTogZnVuY3Rpb25zCiAgICB1cmw6IGh0dHA6Ly9mdW5jdGlvbnM6OTAwMAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGZ1bmN0aW9ucwogICAgICAgIHBhdGhzOgogICAgICAgICAgLSAvZnVuY3Rpb25zL3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAgcGx1Z2luczoKICAgICAgLSBuYW1lOiBjb3JzCiAgICAgICAgY29uZmlnOgogICAgICAgICAgb3JpZ2luczoKICAgICAgICAgICAgLSAiKiIKICAgICAgICAgIG1ldGhvZHM6CiAgICAgICAgICAgIC0gR0VUCiAgICAgICAgICAgIC0gUE9TVAogICAgICAgICAgICAtIFBVVAogICAgICAgICAgICAtIERFTEVURQogICAgICAgICAgICAtIFBBVENICiAgICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgpjb25zdW1lcnM6CiAgLSB1c2VybmFtZTogYW5vbgogICAgY3JlZGVudGlhbHM6CiAgICAgIC0gbmFtZToga2V5LWF1dGgKICAgICAgICBrZXk6ICR7U1VQQUJBU0VfQU5PTl9LRVl9CiAgLSB1c2VybmFtZTogc2VydmljZV9yb2xlCiAgICBjcmVkZW50aWFsczoKICAgICAgLSBuYW1lOiBrZXktYXV0aAogICAgICAgIGtleTogJHtTVVBBQkFTRV9TRVJWSUNFX0tFWX0KICAtIHVzZXJuYW1lOiBkYXNoYm9hcmQKICAgIGNyZWRlbnRpYWxzOgogICAgICAtIG5hbWU6IGJhc2ljLWF1dGgKICAgICAgICB1c2VybmFtZTogJHtEQVNIQk9BUkRfVVNFUk5BTUV9CiAgICAgICAgcGFzc3dvcmQ6ICR7REFTSEJPQVJEX1BBU1NXT1JEfQo="
+    # Entrypoint decodes the B64, evals it for env vars, and starts Kong
+    entrypoint: bash -c 'echo "$$KONG_CONFIG_B64" | base64 -d > ~/temp.yml && eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
@@ -94,35 +92,24 @@ services:
       retries: 3
     depends_on:
       db:
-        # Relaxed constraint for debugging
         condition: service_started
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
-
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
-
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_JWT_EXP: ${JWT_EXPIRY}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
-
       GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
       GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
-
-      # Uncomment to bypass nonce check in ID Token flow. Commonly set to true when using Google Sign In on mobile.
-      # GOTRUE_EXTERNAL_SKIP_NONCE_CHECK: true
-
-      # GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: true
-      # GOTRUE_SMTP_MAX_FREQUENCY: 1s
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: ${SMTP_PORT}
@@ -133,72 +120,14 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
-
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
-
-      # Uncomment to enable OAuth / social login providers.
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED}
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # GOTRUE_EXTERNAL_GITHUB_ENABLED: ${GITHUB_ENABLED}
-      # GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      # GOTRUE_EXTERNAL_GITHUB_SECRET: ${GITHUB_SECRET}
-      # GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # GOTRUE_EXTERNAL_AZURE_ENABLED: ${AZURE_ENABLED}
-      # GOTRUE_EXTERNAL_AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
-      # GOTRUE_EXTERNAL_AZURE_SECRET: ${AZURE_SECRET}
-      # GOTRUE_EXTERNAL_AZURE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # Uncomment to configure SMS delivery (phone auth and phone MFA).
-      # GOTRUE_SMS_PROVIDER: ${SMS_PROVIDER}
-      # GOTRUE_SMS_OTP_EXP: ${SMS_OTP_EXP}
-      # GOTRUE_SMS_OTP_LENGTH: ${SMS_OTP_LENGTH}
-      # GOTRUE_SMS_MAX_FREQUENCY: ${SMS_MAX_FREQUENCY}
-      # GOTRUE_SMS_TEMPLATE: ${SMS_TEMPLATE}
-
-      # Twilio credentials (when SMS_PROVIDER=twilio)
-      # GOTRUE_SMS_TWILIO_ACCOUNT_SID: ${SMS_TWILIO_ACCOUNT_SID}
-      # GOTRUE_SMS_TWILIO_AUTH_TOKEN: ${SMS_TWILIO_AUTH_TOKEN}
-      # GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID: ${SMS_TWILIO_MESSAGE_SERVICE_SID}
-
-      # Test OTP mappings for development
-      # GOTRUE_SMS_TEST_OTP: ${SMS_TEST_OTP}
-
-      # Uncomment to configure multi-factor authentication (MFA).
-      # GOTRUE_MFA_TOTP_ENROLL_ENABLED: ${MFA_TOTP_ENROLL_ENABLED}
-      # GOTRUE_MFA_TOTP_VERIFY_ENABLED: ${MFA_TOTP_VERIFY_ENABLED}
-      # GOTRUE_MFA_PHONE_ENROLL_ENABLED: ${MFA_PHONE_ENROLL_ENABLED}
-      # GOTRUE_MFA_PHONE_VERIFY_ENABLED: ${MFA_PHONE_VERIFY_ENABLED}
-      # GOTRUE_MFA_MAX_ENROLLED_FACTORS: ${MFA_MAX_ENROLLED_FACTORS}
-
-      # Uncomment to enable custom access token hook.
-      # See: https://supabase.com/docs/guides/auth/auth-hooks for
-      # full list of hooks and additional details about custom_access_token_hook
-
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED: "true"
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI: "pg-functions://postgres/public/custom_access_token_hook"
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_SECRETS: "<standard-base64-secret>"
-
-      # Enable Before User Created hook (Strict Invite-Only Auth)
       GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED: "true"
       GOTRUE_HOOK_BEFORE_USER_CREATED_URI: "pg-functions://postgres/public/hook_before_user_created"
-      # GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED: "true"
-      # GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_URI: "pg-functions://postgres/public/mfa_verification_attempt"
-
-      # GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED: "true"
-      # GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI: "pg-functions://postgres/public/password_verification_attempt"
-
-      # GOTRUE_HOOK_SEND_SMS_ENABLED: "false"
-      # GOTRUE_HOOK_SEND_SMS_URI: "pg-functions://postgres/public/custom_access_token_hook"
-      # GOTRUE_HOOK_SEND_SMS_SECRETS: "v1,whsec_VGhpcyBpcyBhbiBleGFtcGxlIG9mIGEgc2hvcnRlciBCYXNlNjQgc3RyaW5n"
-
-      # GOTRUE_HOOK_SEND_EMAIL_ENABLED: "false"
-      # GOTRUE_HOOK_SEND_EMAIL_URI: "http://host.docker.internal:54321/functions/v1/email_sender"
-      # GOTRUE_HOOK_SEND_EMAIL_SECRETS: "v1,whsec_VGhpcyBpcyBhbiBleGFtcGxlIG9mIGEgc2hvcnRlciBCYXNlNjQgc3RyaW5n"
 
   rest:
     container_name: supabase-rest
@@ -206,7 +135,6 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Relaxed constraint for debugging
         condition: service_started
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -219,13 +147,11 @@ services:
     command: [ "postgrest" ]
 
   realtime:
-    # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
     image: supabase/realtime:v2.76.5
     restart: unless-stopped
     depends_on:
       db:
-        # Relaxed constraint for debugging
         condition: service_started
     healthcheck:
       test: [ "CMD-SHELL", "curl -sSfL --head -o /dev/null -H \"Authorization: Bearer ${ANON_KEY}\" http://localhost:4000/api/tenants/realtime-dev/health" ]
@@ -252,14 +178,12 @@ services:
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
 
-  # To use S3 backed storage: docker compose -f docker-compose.yml -f docker-compose.s3.yml up
   storage:
     container_name: supabase-storage
     image: supabase/storage-api:v1.37.8
     restart: unless-stopped
     depends_on:
       db:
-        # Relaxed constraint for debugging
         condition: service_started
       rest:
         condition: service_started
@@ -279,21 +203,12 @@ services:
       REQUEST_ALLOW_X_FORWARDED_PATH: "true"
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
-      # S3 bucket when using S3 backend, directory name when using 'file'
       GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET}
-      # S3 Backend configuration
-      #GLOBAL_S3_ENDPOINT: https://your-s3-endpoint
-      #GLOBAL_S3_PROTOCOL: https
-      #GLOBAL_S3_FORCE_PATH_STYLE: true
-      #AWS_ACCESS_KEY_ID: your-access-key-id
-      #AWS_SECRET_ACCESS_KEY: your-secret-access-key
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       TENANT_ID: ${STORAGE_TENANT_ID}
-      # TODO: https://github.com/supabase/storage-api/issues/55
       REGION: ${REGION}
       ENABLE_IMAGE_TRANSFORMATION: "true"
       IMGPROXY_URL: http://imgproxy:5001
-      # S3 protocol endpoint configuration
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET}
     volumes:
@@ -323,7 +238,6 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Relaxed constraint for debugging
         condition: service_started
     environment:
       PG_META_PORT: 8080
@@ -348,13 +262,10 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-      # Instantly API key Here
       INSTANTLY_API_KEY: ${INSTANTLY_API_KEY}
     command: [ "start", "--main-service", "/home/deno/functions/main" ]
 
-  # Update the DATABASE_URL if you are using an external Postgres database
   supavisor:
     container_name: supabase-pooler
     image: supabase/supavisor:2.7.4
@@ -398,21 +309,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
-      # Must be superuser to create event trigger
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
-      # Must be superuser to alter reserved role
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      # Initialize the database settings with JWT_SECRET and JWT_EXP
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      # PGDATA directory is persisted between restarts
       - ./volumes/db/data:/var/lib/postgresql/data:Z
-      # Changes required for internal supabase data such as _supabase
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      # Changes required for Analytics support
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
-      # Changes required for Pooler support
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
-      # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres" ]
@@ -435,7 +338,7 @@ services:
         "-c",
         "config_file=/etc/postgresql/postgresql.conf",
         "-c",
-        "log_min_messages=fatal" # prevents Realtime polling queries from appearing in logs
+        "log_min_messages=fatal"
       ]
 
   caddy:
