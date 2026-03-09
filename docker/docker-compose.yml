@@ -1,4 +1,4 @@
-# VERSION: 5.3 - TOTAL INDEPENDENCE (WGET FIX)
+# VERSION: 5.4 - TOTAL INDEPENDENCE (DB INIT FIX)
 # If you see this comment in Portainer, you have the correct version!
 
 name: supabase
@@ -9,32 +9,53 @@ services:
     image: supabase/studio:2026.02.16-sha-26c615c
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"
+        ]
       timeout: 10s
       interval: 5s
       retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      meta:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
     environment:
+      # Binds nestjs listener to both IPv4 and IPv6 network interfaces
       HOSTNAME: "::"
+
       STUDIO_PG_META_URL: http://meta:8080
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+
       DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
       DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
       SUPABASE_URL: http://kong:8000
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
-      LOGFLARE_API_KEY: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
+
+      LOGFLARE_API_KEY: ${LOGFLARE_API_KEY}
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
+      # Comment to use Big Query backend for analytics
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+      # Uncomment to use Big Query backend for analytics
+      # NEXT_ANALYTICS_BACKEND_PROVIDER: bigquery
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
@@ -46,8 +67,11 @@ services:
     image: kong:2.8.1
     restart: unless-stopped
     ports:
-      - "8000:8000"
-      - "8443:8443"
+      - ${KONG_HTTP_PORT}:8000/tcp
+      - ${KONG_HTTPS_PORT}:8443/tcp
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -60,11 +84,15 @@ services:
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
     entrypoint:
-      - /bin/sh
+      - /bin/bash
       - -c
       - |
-        mkdir -p /home/kong
-        wget -qO /home/kong/kong.yml "https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/kong_api/kong.yml"
+        URL="https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/api/kong.yml"
+        echo "Downloading clean Kong configuration directly from Github..."
+        if ! wget -q "$URL" -O /home/kong/kong.yml; then
+            echo "Failed to download kong.yml!"
+            exit 1
+        fi
         echo "Kong config downloaded successfully. Starting Kong..."
         exec /docker-entrypoint.sh kong docker-start
 
@@ -72,47 +100,52 @@ services:
     container_name: supabase-auth
     image: supabase/gotrue:v2.186.0
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_started
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9999/health"
+        ]
       timeout: 5s
       interval: 5s
       retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
+
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_JWT_EXP: ${JWT_EXPIRY}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
+
       GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
-      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
-      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-false}
-      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
-      GOTRUE_SMTP_HOST: ${SMTP_HOST}
-      GOTRUE_SMTP_PORT: ${SMTP_PORT}
-      GOTRUE_SMTP_USER: ${SMTP_USER}
-      GOTRUE_SMTP_PASS: ${SMTP_PASS}
-      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
-      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
-      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
-      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
-      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
-      GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
-      GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
-      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED}
-      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
-      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
+      # GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      # GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      # GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      # GOTRUE_SMTP_USER: ${SMTP_USER}
+      # GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      # GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
 
   rest:
     container_name: supabase-rest
@@ -120,30 +153,35 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
+      PGRST_DB_EXTRA_SEARCH_PATH: ${PGRST_DB_EXTRA_SEARCH_PATH}
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
-    command: [ "postgrest" ]
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_SERVER_PORT: 3000
+      PGRST_ADMIN_SERVER_PORT: 3001
 
   realtime:
-    container_name: realtime-dev.supabase-realtime
-    image: supabase/realtime:v2.76.5
+    container_name: supabase-realtime
+    image: supabase/realtime:v2.76.6
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-s",
+          "http://localhost:4000/api/ping"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     depends_on:
       db:
-        condition: service_started
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -sSfL --head -o /dev/null -H \"Authorization: Bearer ${ANON_KEY}\" http://localhost:4000/api/tenants/realtime-dev/health" ]
-      timeout: 5s
-      interval: 30s
-      retries: 3
-      start_period: 10s
+        condition: service_healthy
     environment:
       PORT: 4000
       DB_HOST: ${POSTGRES_HOST}
@@ -152,55 +190,81 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
-      DB_ENC_KEY: supabaserealtime
+      DB_ENC_KEY: ${REALTIME_ENCRYPTION_KEY}
       API_JWT_SECRET: ${JWT_SECRET}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE}
+      METRICS_ENABLE: true
+      METRICS_PORT: 4002
       ERL_AFLAGS: -proto_dist inet_tcp
-      DNS_NODES: "''"
-      RLIMIT_NOFILE: "10000"
+      TENANT_ID: realtime
+      REPLICATION_MODE: RLS
+      REPLICATION_POLL_INTERVAL: 100
+      SECURE_CHANNELS: true
       APP_NAME: realtime
-      SEED_SELF_HOST: "true"
-      RUN_JANITOR: "true"
-      DISABLE_HEALTHCHECK_LOGGING: "true"
+      JWT_CLAIM_VALIDATORS: "{'iss', 'exact', 'supabase'}, {'aud', 'exact', 'authenticated'}"
 
   storage:
     container_name: supabase-storage
     image: supabase/storage-api:v1.37.8
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_started
-      rest:
-        condition: service_started
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://storage:5000/status" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/status"
+        ]
       timeout: 5s
       interval: 5s
       retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      REQUEST_ALLOW_X_FORWARDED_PATH: "true"
+      GCP_CLIENT_ID: ${GCP_CLIENT_ID}
+      GCP_CLIENT_SECRET: ${GCP_CLIENT_SECRET}
+      GCP_CREATION_EMAIL: ${GCP_CREATION_EMAIL}
+      GCP_MIGRAION_MIGRATE: ${GCP_MIGRAION_MIGRATE}
+
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
-      GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET}
-      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
-      TENANT_ID: ${STORAGE_TENANT_ID}
+      TUS_URL_PATH: /storage/v1/upload/resumable
+      PORT: 5000
       REGION: ${REGION}
-      ENABLE_IMAGE_TRANSFORMATION: "false"
+      GLOBAL_S3_BUCKET: supabase
     volumes:
-      - storage_data:/var/lib/storage:z
+      - storage_data:/var/lib/storage:Z
 
   meta:
     container_name: supabase-meta
     image: supabase/postgres-meta:v0.95.2
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
     environment:
       PG_META_PORT: 8080
       PG_META_DB_HOST: ${POSTGRES_HOST}
@@ -223,21 +287,33 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-      INSTANTLY_API_KEY: ${INSTANTLY_API_KEY}
-    command: [ "start", "--main-service", "/home/deno/functions/main" ]
+    command:
+      [
+        "start",
+        "--main-service",
+        "/home/deno/functions/main"
+      ]
 
   db:
     container_name: supabase-db
     image: supabase/postgres:15.8.1.085
     restart: unless-stopped
     volumes:
-      - db_data_v52_final:/var/lib/postgresql/data:Z
+      - db_data_v54:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "postgres" ]
-      interval: 10s
+      test:
+        [
+        "CMD",
+        "pg_isready",
+        "-U",
+        "postgres",
+        "-h",
+        "localhost"
+        ]
+      interval: 5s
       timeout: 5s
       retries: 10
     environment:
@@ -255,24 +331,27 @@ services:
       - -c
       - |
         set -e
-        # Ensure init folder exists
-        mkdir -p /docker-entrypoint-initdb.d/
-        
+        # Create exact directory structure required by supabase/postgres
+        mkdir -p /docker-entrypoint-initdb.d/init-scripts/
+        mkdir -p /docker-entrypoint-initdb.d/migrations/
+
         # Download scripts directly from Github to bypass ALL volume problems
         apt-get update && apt-get install -y curl
-        
+
         URL="https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db"
-        
-        # Download into the root of initdb.d
-        curl -sL "$$URL/realtime.sql" -o /docker-entrypoint-initdb.d/01-realtime.sql
-        curl -sL "$$URL/webhooks.sql" -o /docker-entrypoint-initdb.d/02-webhooks.sql
-        curl -sL "$$URL/roles.sql" -o /docker-entrypoint-initdb.d/03-roles.sql
-        curl -sL "$$URL/jwt.sql" -o /docker-entrypoint-initdb.d/04-jwt.sql
-        curl -sL "$$URL/_supabase.sql" -o /docker-entrypoint-initdb.d/05-_supabase.sql
-        curl -sL "$$URL/logs.sql" -o /docker-entrypoint-initdb.d/06-logs.sql
-        curl -sL "$$URL/pooler.sql" -o /docker-entrypoint-initdb.d/07-pooler.sql
-        
-        echo "Migrations downloaded successfully. Starting Postgres..."
+
+        # Download init-scripts (executed first by postgres entrypoint)
+        curl -sL "$$URL/webhooks.sql" -o /docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
+        curl -sL "$$URL/roles.sql" -o /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+        curl -sL "$$URL/jwt.sql" -o /docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
+
+        # Download migrations (executed afterwards)
+        curl -sL "$$URL/_supabase.sql" -o /docker-entrypoint-initdb.d/migrations/97-_supabase.sql
+        curl -sL "$$URL/logs.sql" -o /docker-entrypoint-initdb.d/migrations/99-logs.sql
+        curl -sL "$$URL/pooler.sql" -o /docker-entrypoint-initdb.d/migrations/99-pooler.sql
+        curl -sL "$$URL/realtime.sql" -o /docker-entrypoint-initdb.d/migrations/99-realtime.sql
+
+        echo "Migrations downloaded into correct directory structure successfully. Starting Postgres..."
         exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c log_min_messages=fatal
 
   caddy:
@@ -287,7 +366,7 @@ services:
     command: caddy reverse-proxy --to kong:8000
 
 volumes:
-  db_data_v52_final:
+  db_data_v54:
   db-config:
   studio_snippets:
   studio_functions:
