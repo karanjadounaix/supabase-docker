@@ -54,7 +54,7 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
 
-    kong:
+  kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
@@ -387,3 +387,4 @@ services:
 volumes:
   db-config:
   deno-cache:
+
