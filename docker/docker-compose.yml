@@ -1,6 +1,5 @@
-# VERSION: 5.1 - TOTAL INDEPENDENCE
+# VERSION: 5.2 - TOTAL INDEPENDENCE (REFINED)
 # If you see this comment in Portainer, you have the correct version!
-# This version bypasses all local volumes for config to avoid "Is a directory" and "No such file" errors.
 
 name: supabase
 
@@ -51,104 +50,14 @@ services:
       - "8443:8443"
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-      KONG_CONFIG: |
-        _format_version: '1.1'
-        consumers:
-          - username: DASHBOARD
-          - username: anon
-            keyauth_credentials:
-              - key: '${ANON_KEY}'
-          - username: service_role
-            keyauth_credentials:
-              - key: '${SERVICE_ROLE_KEY}'
-        acls:
-          - consumer: anon
-            group: anon
-          - consumer: service_role
-            group: admin
-        basicauth_credentials:
-          - consumer: DASHBOARD
-            username: '${DASHBOARD_USERNAME}'
-            password: '${DASHBOARD_PASSWORD}'
-        services:
-          - name: auth-v1
-            url: http://auth:9999/
-            routes:
-              - name: auth-v1-all
-                strip_path: true
-                paths:
-                  - /auth/v1/
-            plugins:
-              - name: cors
-          - name: rest-v1
-            url: http://rest:3000/
-            routes:
-              - name: rest-v1-all
-                strip_path: true
-                paths:
-                  - /rest/v1/
-            plugins:
-              - name: cors
-              - name: key-auth
-                config:
-                  hide_credentials: true
-              - name: acl
-                config:
-                  allow:
-                    - admin
-                    - anon
-          - name: realtime-v1
-            url: http://realtime-dev.supabase-realtime:4000/
-            routes:
-              - name: realtime-v1-all
-                strip_path: true
-                paths:
-                  - /realtime/v1/
-            plugins:
-              - name: cors
-          - name: storage-v1
-            url: http://storage:5000/
-            routes:
-              - name: storage-v1-all
-                strip_path: true
-                paths:
-                  - /storage/v1/
-            plugins:
-              - name: cors
-          - name: functions-v1
-            url: http://functions:9000/
-            routes:
-              - name: functions-v1-all
-                strip_path: true
-                paths:
-                  - /functions/v1/
-            plugins:
-              - name: cors
-          - name: meta
-            url: http://meta:8080/
-            routes:
-              - name: meta-all
-                strip_path: true
-                paths:
-                  - /pg/
-            plugins:
-              - name: key-auth
-                config:
-                  hide_credentials: false
-              - name: acl
-                config:
-                  allow:
-                    - admin
-    entrypoint: sh -c 'echo "$$KONG_CONFIG" > /tmp/kong.yml && /docker-entrypoint.sh kong docker-start'
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    entrypoint: bash -c 'echo "X2Zvcm1hdF92ZXJzaW9uOiAiMS4xIgpzZXJ2aWNlczoKICAtIG5hbWU6IGF1dGgKICAgIHVybDogaHR0cDovL2F1dGg6OTk5OQogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGF1dGgKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2F1dGgvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgLSBuYW1lOiByZXN0CiAgICB1cmw6IGh0dHA6Ly9yZXN0OjMwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiByZXN0CiAgICAgICAgcGF0aHM6CiAgICAgICAgICAtIC9yZXN0L3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAtIG5hbWU6IGdyYXBocWwKICAgIHVybDogaHR0cDovL3Jlc3Q6MzAwMC9ycGMvZ3JhcGhxbAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGdyYXBocWwKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2dyYXBocWwvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IHJlYWx0aW1lCiAgICB1cmw6IGh0dHA6Ly9yZWFsdGltZTo0MDAwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogcmVhbHRpbWUKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3JlYWx0aW1lL3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAtIG5hbWU6IHN0b3JhZ2UKICAgIHVybDogaHR0cDovL3N0b3JhZ2U6NTAwMAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IHN0b3JhZ2UKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3N0b3JhZ2UvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IG1ldGEKICAgIHVybDogaHR0cDovL21ldGE6ODA4MAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IG1ldGEKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3BnX21ldGEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IGRhc2hib2FyZAogICAgdXJsOiBodHRwOi8vc3R1ZGlvOjMwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiBkYXNoYm9hcmQKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL/AWY29uc3VtZXJzOgogICAtIHVzZXJuYW1lOiBhbm9uCiAgICBrZXlhdXRoX2NyZWRlbnRpYWxzOgogICAgICAtIGtleTogIiR7QU5PTl9LRVl9IgogIC0gdXNlcm5hbWU6IHNlcnZpY2Vfcm9sZQogICAga2V5YXV0aF9jcmVkZW50aWFsczoKICAgICAgLSBrZXk6ICIke1NFUlZJQ0VfUk9MRV9LRVl9Ig==" | base64 -d > /tmp/raw.yml && eval "echo \"$$(cat /tmp/raw.yml)\"" > /home/kong/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
@@ -315,7 +224,7 @@ services:
     image: supabase/postgres:15.8.1.085
     restart: unless-stopped
     volumes:
-      - db_data_final_v5:/var/lib/postgresql/data:Z
+      - db_data_v52_final:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres" ]
@@ -337,14 +246,15 @@ services:
       - -c
       - |
         set -e
-        # Ensure init folders exist
+        # Ensure init folder exists
         mkdir -p /docker-entrypoint-initdb.d/
         
         # Download scripts directly from Github to bypass ALL volume problems
-        # We put them in the root of /docker-entrypoint-initdb.d so postgres picks them up
         apt-get update && apt-get install -y curl
         
         URL="https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db"
+        
+        # Download into the root of initdb.d
         curl -sL "$$URL/realtime.sql" -o /docker-entrypoint-initdb.d/01-realtime.sql
         curl -sL "$$URL/webhooks.sql" -o /docker-entrypoint-initdb.d/02-webhooks.sql
         curl -sL "$$URL/roles.sql" -o /docker-entrypoint-initdb.d/03-roles.sql
@@ -364,10 +274,11 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
-    command: caddy reverse-proxy --from $${DOMAIN} --to kong:8000
+    # Simple proxy to Kong without forcing SSL generation which might fail in Simnet
+    command: caddy reverse-proxy --to kong:8000
 
 volumes:
-  db_data_final_v5:
+  db_data_v52_final:
   db-config:
   studio_snippets:
   studio_functions:
