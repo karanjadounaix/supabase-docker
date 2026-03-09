@@ -1,4 +1,4 @@
-# VERSION: 5.2 - TOTAL INDEPENDENCE (REFINED)
+# VERSION: 5.3 - TOTAL INDEPENDENCE (WGET FIX)
 # If you see this comment in Portainer, you have the correct version!
 
 name: supabase
@@ -55,9 +55,18 @@ services:
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      ANON_KEY: ${ANON_KEY}
-      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-    entrypoint: bash -c 'echo "X2Zvcm1hdF92ZXJzaW9uOiAiMS4xIgpzZXJ2aWNlczoKICAtIG5hbWU6IGF1dGgKICAgIHVybDogaHR0cDovL2F1dGg6OTk5OQogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGF1dGgKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2F1dGgvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgLSBuYW1lOiByZXN0CiAgICB1cmw6IGh0dHA6Ly9yZXN0OjMwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiByZXN0CiAgICAgICAgcGF0aHM6CiAgICAgICAgICAtIC9yZXN0L3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAtIG5hbWU6IGdyYXBocWwKICAgIHVybDogaHR0cDovL3Jlc3Q6MzAwMC9ycGMvZ3JhcGhxbAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGdyYXBocWwKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2dyYXBocWwvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IHJlYWx0aW1lCiAgICB1cmw6IGh0dHA6Ly9yZWFsdGltZTo0MDAwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogcmVhbHRpbWUKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3JlYWx0aW1lL3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAtIG5hbWU6IHN0b3JhZ2UKICAgIHVybDogaHR0cDovL3N0b3JhZ2U6NTAwMAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IHN0b3JhZ2UKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3N0b3JhZ2UvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IG1ldGEKICAgIHVybDogaHR0cDovL21ldGE6ODA4MAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IG1ldGEKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3BnX21ldGEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICAtIG5hbWU6IGRhc2hib2FyZAogICAgdXJsOiBodHRwOi8vc3R1ZGlvOjMwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiBkYXNoYm9hcmQKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL/AWY29uc3VtZXJzOgogICAtIHVzZXJuYW1lOiBhbm9uCiAgICBrZXlhdXRoX2NyZWRlbnRpYWxzOgogICAgICAtIGtleTogIiR7QU5PTl9LRVl9IgogIC0gdXNlcm5hbWU6IHNlcnZpY2Vfcm9sZQogICAga2V5YXV0aF9jcmVkZW50aWFsczoKICAgICAgLSBrZXk6ICIke1NFUlZJQ0VfUk9MRV9LRVl9Ig==" | base64 -d > /tmp/raw.yml && eval "echo \"$$(cat /tmp/raw.yml)\"" > /home/kong/kong.yml && /docker-entrypoint.sh kong docker-start'
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mkdir -p /home/kong
+        wget -qO /home/kong/kong.yml "https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/kong_api/kong.yml"
+        echo "Kong config downloaded successfully. Starting Kong..."
+        exec /docker-entrypoint.sh kong docker-start
 
   auth:
     container_name: supabase-auth
