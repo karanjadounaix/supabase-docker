@@ -449,9 +449,9 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+    command: caddy reverse-proxy --from $${DOMAIN} --to kong:8000
 
 volumes:
   db-config:
