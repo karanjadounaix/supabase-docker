@@ -54,16 +54,13 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
 
-  kong:
+    kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
     ports:
       - "8000:8000"
       - "8443:8443"
-    volumes:
-      # Mount the entire api folder, not the file!
-      - ./volumes/api:/home/kong/api_folder:ro,z
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -76,8 +73,7 @@ services:
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # Tell bash to look INSIDE the newly mounted folder instead of temp.yml
-    entrypoint: bash -c 'eval "echo \"$$(cat /home/kong/api_folder/kong_config.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+    entrypoint: bash -c 'curl -sL https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/api/kong.yml -o ~/temp.yml || wget -qO ~/temp.yml https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/api/kong.yml; eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
