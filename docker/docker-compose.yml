@@ -54,7 +54,7 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
 
-    kong:
+  kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
@@ -62,6 +62,7 @@ services:
       - "8000:8000"
       - "8443:8443"
     volumes:
+      # We mount the FOLDER instead of the file to bypass Portainer's empty-directory bug
       - ./volumes/api:/home/kong/api_folder:ro,z
     environment:
       KONG_DATABASE: "off"
@@ -310,7 +311,7 @@ services:
       test: [ "CMD", "pg_isready", "-U", "postgres", "-h", "localhost" ]
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 150
     depends_on:
       - vector
     environment:
@@ -389,4 +390,3 @@ services:
 volumes:
   db-config:
   deno-cache:
-
