@@ -64,8 +64,8 @@ services:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
     volumes:
-      # Fixed Path: kong_api instead of api
-      - ./volumes/kong_api/kong.yml:/home/kong/temp.yml:ro,z
+      # Mount the folder instead of the file to prevent Portainer/Docker "Is a directory" errors
+      - ./volumes/kong_api:/home/kong/config:ro,z
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -80,8 +80,8 @@ services:
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # https://unix.stackexchange.com/a/294837
-    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+    # Updated path to cat /home/kong/config/kong.yml
+    entrypoint: bash -c 'eval "echo \"$$(cat /home/kong/config/kong.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
