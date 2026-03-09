@@ -54,13 +54,13 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
 
-  kong:
+    kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
     ports:
-      - ${KONG_HTTP_PORT}:8000/tcp
-      - ${KONG_HTTPS_PORT}:8443/tcp
+      - "8000:8000"
+      - "8443:8443"
     volumes:
       # https://github.com/supabase/supabase/issues/12661
       - ./volumes/api/kong.yml:/home/kong/temp.yml:ro,z
