@@ -96,8 +96,8 @@ services:
       retries: 3
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
-        condition: service_healthy
+        # Relaxed constraint for debugging
+        condition: service_started
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
@@ -208,8 +208,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
-        condition: service_healthy
+        # Relaxed constraint for debugging
+        condition: service_started
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
@@ -227,8 +227,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
-        condition: service_healthy
+        # Relaxed constraint for debugging
+        condition: service_started
     healthcheck:
       test: [ "CMD-SHELL", "curl -sSfL --head -o /dev/null -H \"Authorization: Bearer ${ANON_KEY}\" http://localhost:4000/api/tenants/realtime-dev/health" ]
       timeout: 5s
@@ -261,8 +261,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
-        condition: service_healthy
+        # Relaxed constraint for debugging
+        condition: service_started
       rest:
         condition: service_started
       imgproxy:
@@ -325,8 +325,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
-        condition: service_healthy
+        # Relaxed constraint for debugging
+        condition: service_started
     environment:
       PG_META_PORT: 8080
       PG_META_DB_HOST: ${POSTGRES_HOST}
@@ -373,7 +373,7 @@ services:
       retries: 5
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
     environment:
       PORT: 4000
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -417,10 +417,10 @@ services:
       # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "postgres", "-h", "localhost" ]
-      interval: 5s
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
       timeout: 5s
-      retries: 30
+      retries: 10
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT}
