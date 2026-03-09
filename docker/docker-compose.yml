@@ -54,7 +54,7 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
 
-    kong:
+  kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
@@ -77,7 +77,6 @@ services:
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
     entrypoint: bash -c 'eval "echo \"$$(cat /home/kong/kong_api/kong.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
-
 
   auth:
     container_name: supabase-auth
@@ -391,3 +390,4 @@ services:
 volumes:
   db-config:
   deno-cache:
+
