@@ -1,14 +1,10 @@
-# Usage
-#   Start:              docker compose up
-#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
-#   Stop:               docker compose down
-#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
-#   Reset everything:  ./reset.sh
+# VERSION: 5.1 - TOTAL INDEPENDENCE
+# If you see this comment in Portainer, you have the correct version!
+# This version bypasses all local volumes for config to avoid "Is a directory" and "No such file" errors.
 
 name: supabase
 
 services:
-
   studio:
     container_name: supabase-studio
     image: supabase/studio:2026.02.16-sha-26c615c
@@ -19,55 +15,43 @@ services:
       interval: 5s
       retries: 3
     environment:
-      # Binds nestjs listener to both IPv4 and IPv6 network interfaces
       HOSTNAME: "::"
-
       STUDIO_PG_META_URL: http://meta:8080
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
-
       DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
       DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-
       SUPABASE_URL: http://kong:8000
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
-
-      # LOGFLARE_API_KEY is deprecated
       LOGFLARE_API_KEY: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
       LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
-      # Comment to use Big Query backend for analytics
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
-      # Uncomment to use Big Query backend for analytics
-      # NEXT_ANALYTICS_BACKEND_PROVIDER: bigquery
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
-      - ./volumes/snippets:/app/snippets:Z
-      - ./volumes/functions:/app/edge-functions:Z
+      - studio_snippets:/app/snippets:Z
+      - studio_functions:/app/edge-functions:Z
 
   kong:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
     ports:
-      - ${KONG_HTTP_PORT}:8000/tcp
-      - ${KONG_HTTPS_PORT}:8443/tcp
-    # BYPASS VOLUMES: In-line config to avoid mounting issues
+      - "8000:8000"
+      - "8443:8443"
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      # https://github.com/supabase/cli/issues/14
+      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
@@ -76,23 +60,108 @@ services:
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-      # The base64 encoded kong.yml (generated from repo)
-      KONG_CONFIG_B64: "_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X_v1,X-X-X-X-X"
-    # Entrypoint that writes the config from B64 environment variable
-    entrypoint: bash -c 'echo "X2Zvcm1hdF92ZXJzaW9uOiAiMS4xIgpzZXJ2aWNlczoKICAtIG5hbWU6IGF1dGgKICAgIHVybDogaHR0cDovL2F1dGg6OTk5OQogICAgcm91dGVzOgogICAgICAtIG5hbWU6IGF1dGgKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2F1dGgvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICBwbHVnaW5zOgogICAgICAtIG5hbWU6IGNvcnMKICAgICAgICBjb25maWc6CiAgICAgICAgICBvcmlnaW5zOgogICAgICAgICAgICAtICIqIgogICAgICAgICAgbWV0aG9kczoKICAgICAgICAgICAgLSBHRVQKICAgICAgICAgICAgLSBQT1NUCiAgICAgICAgICAgIC0gUFVUCiAgICAgICAgICAgIC0gREVMRVRFCiAgICAgICAgICAgIC0gUEFUQ0gKICAgICAgICAgICAgLSBPUFRJT05TCiAgICAgICAgICBoZWFkZXJzOgogICAgICAgICAgICAtICJBY2NlcHQiCiAgICAgICAgICAgIC0gIkFjY2VwdC1Db250cm9sLUFsbG93LU9yaWdpbiIKICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgogICAtIG5hbWU6IHJlc3QKICAgIHVybDogaHR0cDovL3Jlc3Q6MzAwMAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IHJlc3QKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3Jlc3QvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICBwbHVnaW5zOgogICAgICAtIG5hbWU6IGNvcnMKICAgICAgICBjb25maWc6CiAgICAgICAgICBvcmlnaW5zOgogICAgICAgICAgICAtICIqIgogICAgICAgICAgbWV0aG9kczoKICAgICAgICAgICAgLSBHRVQKICAgICAgICAgICAgLSBQT1NUCiAgICAgICAgICAgIC0gUFVUCiAgICAgICAgICAgIC0gREVMRVRFCiAgICAgICAgICAgIC0gUEFUQ0gKICAgICAgICAgICAgLSBPUFRJT05TCiAgICAgICAgICBoZWFkZXJzOgogICAgICAgICAgICAtICJBY2NlcHQiCiAgICAgICAgICAgIC0gIkFjY2VwdC1Db250cm9sLUFsbG93LU9yaWdpbiIKICAgICAgICAgICAgLSAiQ29udGVudC1UeXBlIgogICAgICAgICAgICAtICJBdXRob3JpemF0aW9uIgogICAgICAgICAgICAtICJDb250ZW50LUxlbmd0aCIKICAgICAgICAgICAgLSAiWC1SZXF1ZXN0ZWQtV2l0aCIKICAgICAgICAgICAgLSAieC1jbGllbnQtaW5mbyIKICAgICAgICAgICAgLSAiYXBpa2V5IgogICAgICAgICAgZXhwb3NlZF9oZWFkZXJzOgogICAgICAgICAgICAtICJDb250ZW50LVJhbmdlIgogICAgICAgICAgICAtICJYLVRvdGFsLUNvdW50IgogICAgICAgICAgICAtICJDb250ZW50LURpc3Bvc2l0aW9uIgogICAgICAgICAgbWF4X2FnZTogMzYwMAogICAgICAgICAgcHJlZmxpZ2h0X2NvbnRpbnVlOiBmYWxzZQogICAgICAtIG5hbWU6IGtleS1hdXRoCiAgICAgICAgY29uZmlnOgogICAgICAgICAga2V5X25hbWVzOgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICBoaWRlX2tleV9oZWFkZXI6IGZhbHNlCgogICAtIG5hbWU6IHJlYWx0aW1lCiAgICB1cmw6IGh0dHA6Ly9yZWFsdGltZTo0MDAwCiAgICByb3V0ZXM6CiAgICAgIC0gbmFtZTogcmVhbHRpbWUKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3JlYWx0aW1lL3YxCiAgICAgICAgc3RyaXBfcGF0aDogdHJ1ZQogICAgcGx1Z2luczoKICAgICAgLSBuYW1lOiBjb3JzCiAgICAgICAgY29uZmlnOgogICAgICAgICAgb3JpZ2luczoKICAgICAgICAgICAgLSAiKiIKICAgICAgICAgIG1ldGhvZHM6CiAgICAgICAgICAgIC0gR0VUCiAgICAgICAgICAgIC0gUE9SVAogICAgICAgICAgICAtIFBVVAogICAgICAgICAgICAtIERFTEVURQogICAgICAgICAgICAtIFBBVENICiAgICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgogICAtIG5hbWU6IHN0b3JhZ2UKICAgIHVybDogaHR0cDovL3N0b3JhZ2U6NTAwMAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IHN0b3JhZ2UKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3N0b3JhZ2UvdjEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICBwbHVnaW5zOgogICAgICAtIG5hbWU6IGNvcnMKICAgICAgICBjb25maWc6CiAgICAgICAgICBvcmlnaW5zOgogICAgICAgICAgICAtICIqIgogICAgICAgICAgbWV0aG9kczoKICAgICAgICAgICAgLSBHRVQKICAgICAgICAgICAgLSBQT1NUCiAgICAgICAgICAgIC0gUFVUCiAgICAgICAgICAgIC0gREVMRVRFCiAgICAgICAgICAgIC0gUEFUQ0gKICAgICAgICAgICAgLSBPUFRJT05TCiAgICAgICAgICBoZWFkZXJzOgogICAgICAgICAgICAtICJBY2NlcHQiCiAgICAgICAgICAgIC0gIkFjY2VwdC1Db250cm9sLUFsbG93LU9yaWdpbiIKICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCiAgICAgICAtIG5hbWU6IGtleS1hdXRoCiAgICAgICAgY29uZmlnOgogICAgICAgICAga2V5X25hbWVzOgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICBoaWRlX2tleV9oZWFkZXI6IGZhbHNlCgogICAtIG5hbWU6IG1ldGEKICAgIHVybDogaHR0cDovL21ldGE6ODA4MAogICAgcm91dGVzOgogICAgICAtIG5hbWU6IG1ldGEKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL3BnX21ldGEKICAgICAgICBzdHJpcF9wYXRoOiB0cnVlCiAgICBwbHVnaW5zOgogICAgICAtIG5hbWU6IGJhc2ljLWF1dGgKICAgICAgICBjb25maWc6CiAgICAgICAgICBoaWRlX2NyZWRlbnRpYWxzOiB0cnVlCgogICAtIG5hbWU6IGZ1bmN0aW9ucwogICAgdXJsOiBodHRwOi8vZnVuY3Rpb25zOjkwMDAKICAgIHJvdXRlczoKICAgICAgLSBuYW1lOiBmdW5jdGlvbnMKICAgICAgICBwYXRoczoKICAgICAgICAgIC0gL2Z1bmN0aW9ucy92MQogICAgICAgIHN0cmlwX3BhdGg6IHRydWUKICAgIHBsdWdpbnM6CiAgICAgIC0gbmFtZTogY29ycwogICAgICAgIGNvbmZpZzoKICAgICAgICAgIG9yaWdpbnM6CiAgICAgICAgICAgIC0gIioiCiAgICAgICAgICBtZXRob2RzOgogICAgICAgICAgICAtIEdFVAogICAgICAgICAgICAtIFBPU1QKICAgICAgICAgICAgLSBQVVQKICAgICAgICAgICAtIERFTEVURQogICAgICAgICAgICAtIFBBVENICiAgICAgICAgICAgICAtIE9QVElPTlMKICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgIC0gIkFjY2VwdCIKICAgICAgICAgICAgLSAiQWNjZXB0LUNvbnRyb2wtQWxsb3ctT3JpZ2luIgogICAgICAgICAgICAtICJDb250ZW50LVR5cGUiCiAgICAgICAgICAgIC0gIkF1dGhvcml6YXRpb24iCiAgICAgICAgICAgIC0gIkNvbnRlbnQtTGVuZ3RoIgogICAgICAgICAgICAtICJYLVJlcXVlc3RlZC1XaXRoIgogICAgICAgICAgICAtICJ4LWNsaWVudC1pbmZvIgogICAgICAgICAgICAtICJhcGlrZXkiCiAgICAgICAgICBleHBvc2VkX2hlYWRlcnM6CiAgICAgICAgICAgIC0gIkNvbnRlbnQtUmFuZ2UiCiAgICAgICAgICAgIC0gIlgtVG90YWwtQ291bnQiCiAgICAgICAgICAgIC0gIkNvbnRlbnQtRGlzcG9zaXRpb24iCiAgICAgICAgICBtYXhfYWdlOiAzNjAwCiAgICAgICAgICBwcmVmbGlnaHRfY29udGludWU6IGZhbHNlCgpjb25zdW1lcnM6CiAgLSB1c2VybmFtZTogYW5vbgogICAgY3JlZGVudGlhbHM6CiAgICAgICAtIG5hbWU6IGtleS1hdXRoCiAgICAgICAgIGtleTogJHtTVVBBQkFTRV9BTk9OX0tFWX0KICAtIHVzZXJuYW1lOiBzZXJ2aWNlX3JvbGUKICAgIGNyZWRlbnRpYWxzOgogICAgICAgLSBuYW1lOiBrZXktYXV0aAogICAgICAgICBrZXk6ICR7U1VQQUJBU0VfU0VSVklDRV9LRVl9CiAgLSB1c2VybmFtZTogZGFzaGJvYXJkCiAgICBjcmVkZW50aWFsczoKICAgICAgIC0gbmFtZTogYmFzaWMtYXV0aAogICAgICAgICB1c2VybmFtZTogJHtEQVNIQk9BUkRfVVNFUk5BTUV9CiAgICAgICAgIHBhc3N3b3JkOiAke0RBU0hCT0FSRF9QQVNTV09SRH0K" | base64 -d > /tmp/raw.yml && eval "echo \"$$(cat /tmp/raw.yml)\"" > /home/kong/kong.yml && /docker-entrypoint.sh kong docker-start'
+      KONG_CONFIG: |
+        _format_version: '1.1'
+        consumers:
+          - username: DASHBOARD
+          - username: anon
+            keyauth_credentials:
+              - key: '${ANON_KEY}'
+          - username: service_role
+            keyauth_credentials:
+              - key: '${SERVICE_ROLE_KEY}'
+        acls:
+          - consumer: anon
+            group: anon
+          - consumer: service_role
+            group: admin
+        basicauth_credentials:
+          - consumer: DASHBOARD
+            username: '${DASHBOARD_USERNAME}'
+            password: '${DASHBOARD_PASSWORD}'
+        services:
+          - name: auth-v1
+            url: http://auth:9999/
+            routes:
+              - name: auth-v1-all
+                strip_path: true
+                paths:
+                  - /auth/v1/
+            plugins:
+              - name: cors
+          - name: rest-v1
+            url: http://rest:3000/
+            routes:
+              - name: rest-v1-all
+                strip_path: true
+                paths:
+                  - /rest/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: true
+              - name: acl
+                config:
+                  allow:
+                    - admin
+                    - anon
+          - name: realtime-v1
+            url: http://realtime-dev.supabase-realtime:4000/
+            routes:
+              - name: realtime-v1-all
+                strip_path: true
+                paths:
+                  - /realtime/v1/
+            plugins:
+              - name: cors
+          - name: storage-v1
+            url: http://storage:5000/
+            routes:
+              - name: storage-v1-all
+                strip_path: true
+                paths:
+                  - /storage/v1/
+            plugins:
+              - name: cors
+          - name: functions-v1
+            url: http://functions:9000/
+            routes:
+              - name: functions-v1-all
+                strip_path: true
+                paths:
+                  - /functions/v1/
+            plugins:
+              - name: cors
+          - name: meta
+            url: http://meta:8080/
+            routes:
+              - name: meta-all
+                strip_path: true
+                paths:
+                  - /pg/
+            plugins:
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  allow:
+                    - admin
+    entrypoint: sh -c 'echo "$$KONG_CONFIG" > /tmp/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
     image: supabase/gotrue:v2.186.0
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_started
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
       timeout: 5s
       interval: 5s
       retries: 3
-    depends_on:
-      db:
-        condition: service_started
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
@@ -109,7 +178,7 @@ services:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
-      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCROFIRM:-false}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-false}
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: ${SMTP_PORT}
@@ -126,8 +195,6 @@ services:
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-      GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED: "true"
-      GOTRUE_HOOK_BEFORE_USER_CREATED_URI: "pg-functions://postgres/public/hook_before_user_created"
 
   rest:
     container_name: supabase-rest
@@ -187,8 +254,6 @@ services:
         condition: service_started
       rest:
         condition: service_started
-      imgproxy:
-        condition: service_started
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://storage:5000/status" ]
       timeout: 5s
@@ -207,30 +272,9 @@ services:
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       TENANT_ID: ${STORAGE_TENANT_ID}
       REGION: ${REGION}
-      ENABLE_IMAGE_TRANSFORMATION: "true"
-      IMGPROXY_URL: http://imgproxy:5001
-      S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID}
-      S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET}
+      ENABLE_IMAGE_TRANSFORMATION: "false"
     volumes:
-      - ./volumes/storage:/var/lib/storage:z
-
-  imgproxy:
-    container_name: supabase-imgproxy
-    image: darthsim/imgproxy:v3.30.1
-    restart: unless-stopped
-    volumes:
-      - ./volumes/storage:/var/lib/storage:z
-    healthcheck:
-      test: [ "CMD", "imgproxy", "health" ]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      IMGPROXY_BIND: ":5001"
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION}
-      IMGPROXY_MAX_SRC_RESOLUTION: 16.8
+      - storage_data:/var/lib/storage:z
 
   meta:
     container_name: supabase-meta
@@ -253,7 +297,7 @@ services:
     image: supabase/edge-runtime:v1.70.3
     restart: unless-stopped
     volumes:
-      - ./volumes/functions:/home/deno/functions:Z
+      - studio_functions:/home/deno/functions:Z
       - deno-cache:/root/.cache/deno
     environment:
       JWT_SECRET: ${JWT_SECRET}
@@ -266,56 +310,12 @@ services:
       INSTANTLY_API_KEY: ${INSTANTLY_API_KEY}
     command: [ "start", "--main-service", "/home/deno/functions/main" ]
 
-  supavisor:
-    container_name: supabase-pooler
-    image: supabase/supavisor:2.7.4
-    restart: unless-stopped
-    ports:
-      - ${POSTGRES_PORT}:5432
-      - ${POOLER_PROXY_PORT_TRANSACTION}:6543
-    volumes:
-      - ./volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro,z
-    healthcheck:
-      test: [ "CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "http://127.0.0.1:4000/api/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      db:
-        condition: service_started
-    environment:
-      PORT: 4000
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_URL: ecto://supabase_admin:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
-      CLUSTER_POSTGRES: true
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      VAULT_ENC_KEY: ${VAULT_ENC_KEY}
-      API_JWT_SECRET: ${JWT_SECRET}
-      METRICS_JWT_SECRET: ${JWT_SECRET}
-      REGION: local
-      ERL_AFLAGS: -proto_dist inet_tcp
-      POOLER_TENANT_ID: ${POOLER_TENANT_ID}
-      POOLER_DEFAULT_POOL_SIZE: ${POOLER_DEFAULT_POOL_SIZE}
-      POOLER_MAX_CLIENT_CONN: ${POOLER_MAX_CLIENT_CONN}
-      POOLER_POOL_MODE: transaction
-      DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE}
-    command: [ "/bin/sh", "-c", "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server" ]
-
   db:
     container_name: supabase-db
     image: supabase/postgres:15.8.1.085
     restart: unless-stopped
     volumes:
-      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
-      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - ./volumes/db/data:/var/lib/postgresql/data:Z
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
-      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      - db_data_final_v5:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres" ]
@@ -332,14 +332,29 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
-    command:
-      [
-        "postgres",
-        "-c",
-        "config_file=/etc/postgresql/postgresql.conf",
-        "-c",
-        "log_min_messages=fatal"
-      ]
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        # Ensure init folders exist
+        mkdir -p /docker-entrypoint-initdb.d/
+        
+        # Download scripts directly from Github to bypass ALL volume problems
+        # We put them in the root of /docker-entrypoint-initdb.d so postgres picks them up
+        apt-get update && apt-get install -y curl
+        
+        URL="https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db"
+        curl -sL "$$URL/realtime.sql" -o /docker-entrypoint-initdb.d/01-realtime.sql
+        curl -sL "$$URL/webhooks.sql" -o /docker-entrypoint-initdb.d/02-webhooks.sql
+        curl -sL "$$URL/roles.sql" -o /docker-entrypoint-initdb.d/03-roles.sql
+        curl -sL "$$URL/jwt.sql" -o /docker-entrypoint-initdb.d/04-jwt.sql
+        curl -sL "$$URL/_supabase.sql" -o /docker-entrypoint-initdb.d/05-_supabase.sql
+        curl -sL "$$URL/logs.sql" -o /docker-entrypoint-initdb.d/06-logs.sql
+        curl -sL "$$URL/pooler.sql" -o /docker-entrypoint-initdb.d/07-pooler.sql
+        
+        echo "Migrations downloaded successfully. Starting Postgres..."
+        exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c log_min_messages=fatal
 
   caddy:
     image: caddy:2
@@ -349,13 +364,12 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
     command: caddy reverse-proxy --from $${DOMAIN} --to kong:8000
 
 volumes:
+  db_data_final_v5:
   db-config:
+  studio_snippets:
+  studio_functions:
   deno-cache:
-  caddy_data:
-  caddy_config:
+  storage_data:
