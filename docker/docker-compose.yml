@@ -1,3 +1,6 @@
+# VERSION: 4.0 - FORCED RESET 
+# If you see this comment in Portainer, it means you have the correct version!
+
 name: supabase
 
 services:
@@ -459,14 +462,14 @@ services:
     image: supabase/postgres:15.1.1.72
     restart: unless-stopped
     volumes:
-      # !! CRITICAL: Forced v3 volume to reset persistence !!
-      - db-data-v3:/var/lib/postgresql/data:Z
+      # !! NEW VOLUME NAME TO FORCE RESET !!
+      - db-reset-v5:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres", "-h", "localhost" ]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 150
+      retries: 100
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT}
@@ -482,15 +485,12 @@ services:
       - -c
       - |
         set -e
-        # Wipe data directory if it's not a real postgres DB yet
-        if [ ! -s "/var/lib/postgresql/data/PG_VERSION" ]; then
-          echo "Initializing fresh database..."
-        fi
-        
         mkdir -p /docker-entrypoint-initdb.d/migrations
         mkdir -p /docker-entrypoint-initdb.d/init-scripts
         
         # Download scripts directly from Github
+        apt-get update && apt-get install -y curl
+        
         curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/realtime.sql -o /docker-entrypoint-initdb.d/migrations/99-realtime.sql
         curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/webhooks.sql -o /docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
         curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/roles.sql -o /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
@@ -499,7 +499,6 @@ services:
         curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/logs.sql -o /docker-entrypoint-initdb.d/migrations/99-logs.sql
         curl -s https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/db/pooler.sql -o /docker-entrypoint-initdb.d/migrations/99-pooler.sql
         
-        # Now run the official entrypoint (it handles user switching itself)
         exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c log_min_messages=fatal
 
   vector:
@@ -558,5 +557,6 @@ services:
 
 volumes:
   db-config:
-  db-data-v3:
+  db-reset-v5:
   deno-cache:
+
