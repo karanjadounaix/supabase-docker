@@ -1,14 +1,6 @@
-# Usage
-#   Start:              docker compose up
-#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
-#   Stop:               docker compose down
-#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
-#   Reset everything:  ./reset.sh
-
 name: supabase
 
 services:
-
   studio:
     container_name: supabase-studio
     image: supabase/studio:2026.02.16-sha-26c615c
@@ -19,34 +11,26 @@ services:
       interval: 5s
       retries: 3
     environment:
-      # Binds nestjs listener to both IPv4 and IPv6 network interfaces
       HOSTNAME: "::"
-
       STUDIO_PG_META_URL: http://meta:8080
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
-
       DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
       DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-
       SUPABASE_URL: http://kong:8000
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
-
-      # LOGFLARE_API_KEY is deprecated
       LOGFLARE_API_KEY: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
       LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
-      # Comment to use Big Query backend for analytics
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
@@ -61,13 +45,9 @@ services:
     ports:
       - "8000:8000"
       - "8443:8443"
-    volumes:
-      # Mounting the brand new folder!
-      - ./volumes/kong_api:/home/kong/kong_api:ro,z
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      # https://github.com/supabase/cli/issues/14
+      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
@@ -76,7 +56,199 @@ services:
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    entrypoint: bash -c 'eval "echo \"$$(cat /home/kong/kong_api/kong.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+      # This completely bypasses all Portainer volume bugs by writing the file directly from memory!
+      KONG_CONFIG: |
+        _format_version: '2.1'
+        _transform: true
+        consumers:
+          - username: DASHBOARD
+          - username: anon
+            keyauth_credentials:
+              - key: ${ANON_KEY}
+          - username: service_role
+            keyauth_credentials:
+              - key: ${SERVICE_ROLE_KEY}
+        acls:
+          - consumer: anon
+            group: anon
+          - consumer: service_role
+            group: admin
+        basicauth_credentials:
+          - consumer: DASHBOARD
+            username: '${DASHBOARD_USERNAME}'
+            password: '${DASHBOARD_PASSWORD}'
+        services:
+          - name: auth-v1-open
+            url: http://auth:9999/verify
+            routes:
+              - name: auth-v1-open
+                strip_path: true
+                paths:
+                  - /auth/v1/verify
+            plugins:
+              - name: cors
+          - name: auth-v1-open-callback
+            url: http://auth:9999/callback
+            routes:
+              - name: auth-v1-open-callback
+                strip_path: true
+                paths:
+                  - /auth/v1/callback
+            plugins:
+              - name: cors
+          - name: auth-v1-open-authorize
+            url: http://auth:9999/authorize
+            routes:
+              - name: auth-v1-open-authorize
+                strip_path: true
+                paths:
+                  - /auth/v1/authorize
+            plugins:
+              - name: cors
+          - name: auth-v1
+            url: http://auth:9999/
+            routes:
+              - name: auth-v1-all
+                strip_path: true
+                paths:
+                  - /auth/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: rest-v1
+            url: http://rest:3000/
+            routes:
+              - name: rest-v1-all
+                strip_path: true
+                paths:
+                  - /rest/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: true
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: graphql-v1
+            url: http://rest:3000/rpc/graphql
+            routes:
+              - name: graphql-v1-all
+                strip_path: true
+                paths:
+                  - /graphql/v1
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: true
+              - name: request-transformer
+                config:
+                  add:
+                    headers:
+                      - Content-Profile:graphql_public
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: realtime-v1-ws
+            url: http://realtime-dev.supabase-realtime:4000/socket
+            protocol: ws
+            routes:
+              - name: realtime-v1-ws
+                strip_path: true
+                paths:
+                  - /realtime/v1/
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: realtime-v1-rest
+            url: http://realtime-dev.supabase-realtime:4000/api
+            protocol: http
+            routes:
+              - name: realtime-v1-rest
+                strip_path: true
+                paths:
+                  - /realtime/v1/api
+            plugins:
+              - name: cors
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+                    - anon
+          - name: storage-v1
+            url: http://storage:5000/
+            routes:
+              - name: storage-v1-all
+                strip_path: true
+                paths:
+                  - /storage/v1/
+            plugins:
+              - name: cors
+          - name: functions-v1
+            url: http://functions:9000/
+            routes:
+              - name: functions-v1-all
+                strip_path: true
+                paths:
+                  - /functions/v1/
+            plugins:
+              - name: cors
+          - name: meta
+            url: http://meta:8080/
+            routes:
+              - name: meta-all
+                strip_path: true
+                paths:
+                  - /pg/
+            plugins:
+              - name: key-auth
+                config:
+                  hide_credentials: false
+              - name: acl
+                config:
+                  hide_groups_header: true
+                  allow:
+                    - admin
+          - name: dashboard
+            url: http://studio:3000/
+            routes:
+              - name: dashboard-all
+                strip_path: true
+                paths:
+                  - /
+            plugins:
+              - name: cors
+              - name: basic-auth
+                config:
+                  hide_credentials: true
+    entrypoint: sh -c 'echo "$$KONG_CONFIG" > /tmp/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
@@ -93,24 +265,19 @@ services:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
-
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
-
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_JWT_EXP: ${JWT_EXPIRY}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
-
       GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
       GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
-
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: ${SMTP_PORT}
@@ -121,16 +288,12 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
-
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
-
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED}
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # Enable Before User Created hook (Strict Invite-Only Auth)
       GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED: "true"
       GOTRUE_HOOK_BEFORE_USER_CREATED_URI: "pg-functions://postgres/public/hook_before_user_created"
 
@@ -151,7 +314,6 @@ services:
     command: [ "postgrest" ]
 
   realtime:
-    # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
     image: supabase/realtime:v2.76.5
     restart: unless-stopped
@@ -390,4 +552,3 @@ services:
 volumes:
   db-config:
   deno-cache:
-
