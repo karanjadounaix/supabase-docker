@@ -64,10 +64,8 @@ services:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
     volumes:
-      # https://github.com/supabase/supabase/issues/12661
-      - ./volumes/api/kong.yml:/home/kong/temp.yml:ro,z
-      #- ./volumes/api/server.crt:/home/kong/server.crt:ro
-      #- ./volumes/api/server.key:/home/kong/server.key:ro
+      # Fixed Path: kong_api instead of api
+      - ./volumes/kong_api/kong.yml:/home/kong/temp.yml:ro,z
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
