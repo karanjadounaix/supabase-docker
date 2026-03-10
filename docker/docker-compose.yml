@@ -4,7 +4,6 @@
 name: supabase
 
 services:
-
   # ============================================
   # CADDY - Reverse Proxy with Automatic SSL
   # ============================================
@@ -23,12 +22,10 @@ services:
       SITE_HOSTNAME: ${SITE_HOSTNAME:-localhost}
     depends_on:
       - kong
-    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     entrypoint: ["/bin/sh", "-c"]
-    # Inline Caddyfile configuration
     command:
       - |
-        echo "${SITE_HOSTNAME} {
+        echo "$${SITE_HOSTNAME} {
           reverse_proxy kong:8000 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}
