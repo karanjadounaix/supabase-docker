@@ -1,0 +1,35 @@
+# Caddyfile for Supabase with automatic SSL
+# Place this file at: docker/Caddyfile
+
+{$SITE_HOSTNAME} {
+    # Reverse proxy to Kong API Gateway
+    reverse_proxy kong:8000 {
+        # Pass original headers
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # WebSocket support for Realtime
+        header_up Connection {http.request.header.Connection}
+        header_up Upgrade {http.request.header.Upgrade}
+    }
+
+    # Enable compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-XSS-Protection "1; mode=block"
+        -Server
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
