@@ -31,9 +31,14 @@ services:
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}
-            header_up Connection {>Connection}
-            header_up Upgrade {>Upgrade}
           }
+          
+          @websockets {
+            header Connection *Upgrade*
+            header Upgrade websocket
+          }
+          reverse_proxy @websockets kong:8000
+
           encode gzip zstd
           header {
             X-Content-Type-Options nosniff
