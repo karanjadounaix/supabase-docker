@@ -459,7 +459,7 @@ services:
     image: supabase/edge-runtime:v1.70.3
     restart: unless-stopped
     volumes:
-      - ./volumes/functions:/home/deno/functions:Z
+      - functions-data:/home/deno/functions:Z
       - deno-cache:/root/.cache/deno
     environment:
       JWT_SECRET: ${JWT_SECRET}
@@ -470,7 +470,16 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
       INSTANTLY_API_KEY: ${INSTANTLY_API_KEY}
-    command: [ "start", "--main-service", "/home/deno/functions/main" ]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache git curl
+        rm -rf /home/deno/functions/*
+        cd /home/deno/functions
+        curl -sL https://github.com/karanjadounaix/supabase-docker/archive/refs/heads/main.tar.gz | tar xz --strip-components=4 supabase-docker-main/docker/volumes/functions/
+        echo "Functions downloaded:"
+        ls -la /home/deno/functions/
+        exec /usr/local/bin/edge-runtime start --main-service /home/deno/functions/main
 
   analytics:
     container_name: supabase-analytics
@@ -602,3 +611,4 @@ volumes:
   deno-cache:
   caddy_data:
   caddy_config:
+  functions-data:
