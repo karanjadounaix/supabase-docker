@@ -470,15 +470,16 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD_URIENCODED}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
       INSTANTLY_API_KEY: ${INSTANTLY_API_KEY}
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        apk add --no-cache git curl
+        apt-get update && apt-get install -y wget tar
         rm -rf /home/deno/functions/*
         cd /home/deno/functions
-        curl -sL https://github.com/karanjadounaix/supabase-docker/archive/refs/heads/main.tar.gz | tar xz --strip-components=4 supabase-docker-main/docker/volumes/functions/
+        wget -qO- https://github.com/karanjadounaix/supabase-docker/archive/refs/heads/main.tar.gz | tar xz --strip-components=4 supabase-docker-main/docker/volumes/functions/
         echo "Functions downloaded:"
         ls -la /home/deno/functions/
+        ls -la /home/deno/functions/main/ || echo "main folder not found"
         exec /usr/local/bin/edge-runtime start --main-service /home/deno/functions/main
 
   analytics:
