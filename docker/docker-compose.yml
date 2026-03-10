@@ -1,9 +1,30 @@
-# VERSION: 4.0 - FORCED RESET 
+# VERSION: 5.0 - WITH CADDY SSL
 # If you see this comment in Portainer, it means you have the correct version!
 
 name: supabase
 
 services:
+
+  # ============================================
+  # CADDY - Reverse Proxy with Automatic SSL
+  # ============================================
+  caddy:
+    container_name: supabase-caddy
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SITE_HOSTNAME: ${SITE_HOSTNAME:-localhost}
+    depends_on:
+      - kong
+
   studio:
     container_name: supabase-studio
     image: supabase/studio:2026.02.16-sha-26c615c
@@ -45,9 +66,10 @@ services:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
-    ports:
-      - "8000:8000"
-      - "8443:8443"
+    # REMOVED external ports - Caddy handles SSL now
+    # Keep port 8000 exposed internally for Caddy
+    expose:
+      - "8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
@@ -462,7 +484,6 @@ services:
     image: supabase/postgres:15.1.1.72
     restart: unless-stopped
     volumes:
-      # !! NEW VOLUME NAME TO FORCE RESET !!
       - db-reset-v5:/var/lib/postgresql/data:Z
       - db-config:/etc/postgresql-custom
     healthcheck:
@@ -559,4 +580,5 @@ volumes:
   db-config:
   db-reset-v5:
   deno-cache:
-
+  caddy_data:
+  caddy_config:
