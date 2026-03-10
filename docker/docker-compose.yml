@@ -17,13 +17,36 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
       SITE_HOSTNAME: ${SITE_HOSTNAME:-localhost}
     depends_on:
       - kong
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    entrypoint: ["/bin/sh", "-c"]
+    # Inline Caddyfile configuration
+    command:
+      - |
+        echo "${SITE_HOSTNAME} {
+          reverse_proxy kong:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+          }
+          encode gzip zstd
+          header {
+            X-Content-Type-Options nosniff
+            X-Frame-Options SAMEORIGIN
+            -Server
+          }
+          log {
+            output stdout
+          }
+        }" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile
 
   studio:
     container_name: supabase-studio
