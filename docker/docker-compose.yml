@@ -575,7 +575,7 @@ services:
     security_opt:
       - "label=disable"
 
-   supavisor:
+  supavisor:
     container_name: supabase-pooler
     image: supabase/supavisor:2.7.4
     restart: unless-stopped
