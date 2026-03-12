@@ -608,10 +608,13 @@ services:
       POOLER_POOL_MODE: transaction
       DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE}
     command:
-      - /bin/sh
-      - -c
-      - |
-        /app/bin/migrate && /app/bin/server
+    - /bin/sh
+    - -c
+    - |
+      /app/bin/migrate
+      wget -qO /tmp/pooler.exs https://raw.githubusercontent.com/karanjadounaix/supabase-docker/main/docker/volumes/pooler/pooler.exs
+      /app/bin/supavisor eval "$(cat /tmp/pooler.exs)"
+      /app/bin/server
 
 volumes:
   db-config:
